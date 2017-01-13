@@ -55,18 +55,14 @@ class ApsisNode
     r = RestClient.get(url=@url+@path,
                        :params => {:pubkey => @pubkey},
                        :headers => @headers.merge({}))
-    resp = gen_response(r)
-    @jwt = JWT.decode resp[:body], nil, false
-    p @jwt[0]['data']['challenge']
-    @headers['X-PoW'] =  ProofOfWork.solve(@jwt[0]['data']['challenge'],5)
-    p @headers['X-PoW']
-    @headers[:Authorization] = 'Bearer ' + resp[:body]
-    resp
+    rs = gen_response(r)
+    #set_next_headers
+    rs
   end
 
   def get_random_nodes()
     @path = "/nodes/random"
-    params = {params: {pubkey: @pubkey}}
+    params = {params: {}}
     r = RestClient.get(url=@url+@path,
                       params.merge(@headers))
     gen_response(r)
@@ -74,7 +70,7 @@ class ApsisNode
 
   def post_node(payload)
     @path = '/nodes'
-    params = {params: {pubkey: @pubkey}}
+    params = {params: {}}
     r = RestClient.post(url=@url+@path,
                     payload.to_json,
                     params.merge(@headers))
@@ -84,7 +80,7 @@ class ApsisNode
   def debug()
     payload = "THIS is a test message"
     @path = '/nodes/debug'
-    params = {params: {pubkey: @pubkey}}
+    params = {params: {}}
     r = RestClient.get(@url+@path,
                       params.merge(@headers))
     gen_response(r)
@@ -94,11 +90,22 @@ class ApsisNode
 
   def gen_response(rest)
     fail Exception if rest.code >= 400
+    @jwt = rest.headers[:x_jwt]
+    @decoded_jwt = JWT.decode @jwt, nil, false
+    p @decoded_jwt
+    set_next_headers
     {code: rest.code,
      cookies: rest.cookies,
      headers: rest.headers,
      body: rest.body}
   end
+
+  def set_next_headers
+    @headers['X-PoW'] =  ProofOfWork.solve(@decoded_jwt[0]['data']['challenge'],5)
+    @headers[:Authorization] = 'Bearer ' + @jwt
+  end
+
+
 end
 
 class Tinc
@@ -164,16 +171,18 @@ else
   t = Tinc.new('/usr/local/sbin/tinc',config['tinc']['dir'],config['tinc']['node'],params["net"])
 end
 pubk = t.pubkey
-p pubk
+puts "[loaded pubkey] " + pubk
 
 an = ApsisNode.new(config['hub']['url'], pubk)
 p an.get_challenge()
-#p an.debug()
-p an.get_random_nodes # fetch a random node
 
 node = {version: 1, keys: {ed25519: pubk}, type: "tinc", tinc: {file: t.host}}
 
 an.post_node(node) # publish own data to the server
+candidate_nodes = an.get_random_nodes # fetch a random node
+#sleep 1
+#candidate_nodes = an.get_random_nodes # fetch a random node
+#sleep 1
 #candidate_nodes = an.get_random_nodes # fetch a random node
 #candidate_nodes
 #
