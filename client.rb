@@ -52,20 +52,18 @@ class ApsisNode
 
   def get_challenge()
     @path = "/jwt/challenge"
+    params = {params: { pubkey: @pubkey }}
     r = RestClient.get(url=@url+@path,
-                       :params => {:pubkey => @pubkey},
-                       :headers => @headers.merge({}))
-    rs = gen_response(r)
-    #set_next_headers
-    rs
+                       params.merge(@headers))
+    gen_response(r)
   end
 
-  def get_random_nodes()
+  def get_random_node()
     @path = "/nodes/random"
     params = {params: {}}
     r = RestClient.get(url=@url+@path,
                       params.merge(@headers))
-    gen_response(r)
+    parse gen_response(r)
   end
 
   def post_node(payload)
@@ -89,10 +87,9 @@ class ApsisNode
   private
 
   def gen_response(rest)
-    fail Exception if rest.code >= 400
     @jwt = rest.headers[:x_jwt]
     @decoded_jwt = JWT.decode @jwt, nil, false
-    p @decoded_jwt
+    #p @decoded_jwt[0]['data']
     set_next_headers
     {code: rest.code,
      cookies: rest.cookies,
@@ -105,58 +102,65 @@ class ApsisNode
     @headers[:Authorization] = 'Bearer ' + @jwt
   end
 
+  def parse(resp)
+    if resp.dig(:headers,:content_type) == 'application/json'
+      return JSON.parse(resp[:body], quirks_mode: true)
+    end
+    nil
+  end
 
 end
 
 class Tinc
-  def initialize(tinc_bin, tinc_conf_dir, node, netname=nil)
+  attr_reader :netname, :me
+
+  def initialize(tinc_bin, tinc_conf_dir, netname=nil)
     @bin = tinc_bin
     @netname = netname
 
-    if netname.nil?
-      uuid = SecureRandom.uuid.split('-')
+    if @netname.nil?
+      netuuid = SecureRandom.uuid.split('-')
       # except uuid4 version&variant for maximize a entropy
-      @netname = [uuid.first, uuid.last].join()[0,15]
-      system("#{@bin} init #{@netname}")
+      @netname = [netuuid.first, netuuid.last].join()[0,15]
     end
 
-    @hosts_dir = "#{tinc_conf_dir}/#{netname}/hosts"
-    @node_file = "#{@hosts_dir}/#{node}"
-
-    @node = node
+    @hosts_dir = "#{tinc_conf_dir}/#{@netname}/hosts"
   end
 
-  def pubkey()
-    ed25519_token = 'Ed25519PublicKey = '
-    File.open(@node_file) do |f|
-      f.each_line do |l|
-        if l.start_with?(ed25519_token)
-          return l.slice(ed25519_token.length..l.length).chomp
-        end
-      end
+  def import(data)
+    IO.popen("#{@bin} -n #{@netname} import", 'r+') do |io|
+       io.write(data)
+       io.close_write
     end
   end
 
-  def host()
-    node_file = ''
-    File.open(@node_file) do |file|
-      node_file = file.read
-    end
-    node_file
-  end
-
-  def write_host(file)
-    File.open(@node_file, "w") do |f|
-   # File.open('./' + @node, "w") do |f|
-      f.puts(file)
+  def export
+    IO.popen("#{@bin} -n #{@netname} export", 'r') do |io|
+       return io.read
     end
   end
 
-  def connect(pubk)
+  def connect(node_name, node_ip)
     system("#{@bin} -n #{@netname} start")
+    #system("#{@bin} -n #{@netname} add Address #{node_ip}")
+    system("#{@bin} -n #{@netname} add ConnectTo #{node_name}")
   end
 
-  def init()
+  def init
+    node_uuid = SecureRandom.uuid.split('-')
+    node_name = [node_uuid.first, node_uuid.last].join()
+    system("#{@bin} -n #{@netname} init #{node_name}")
+    node_name
+  end
+
+  def self.parse(str)
+    hash = {}
+    str.each_line do |l|
+      pair = l.split('=')
+      pair.map! {|e| e.delete(' ')}
+      hash[pair[0]] = pair[1]
+    end
+    hash
   end
 
 end
@@ -166,29 +170,39 @@ params = ARGV.getopts('','net:')
 config = YAML.load_file('config.yml')
 
 if params["net"].nil?
-  t = Tinc.new('/usr/local/sbin/tinc',config['tinc']['dir'],config['tinc']['node'])
+  t = Tinc.new('/usr/local/sbin/tinc',config['tinc']['dir'])
+  mynode = t.init
 else
   t = Tinc.new('/usr/local/sbin/tinc',config['tinc']['dir'],config['tinc']['node'],params["net"])
 end
-pubk = t.pubkey
-puts "[loaded pubkey] " + pubk
+mynode_file = t.export
+mynode_obj = Tinc.parse(mynode_file)
+pubk = mynode_obj['Ed25519PublicKey']
+puts "tinc.#{t.netname} with pubkey: #{pubk}"
 
 an = ApsisNode.new(config['hub']['url'], pubk)
-p an.get_challenge()
+an.get_challenge()
 
-node = {version: 1, keys: {ed25519: pubk}, type: "tinc", tinc: {file: t.host}}
+node = {version: 1, keys: {ed25519: pubk}, type: "tinc", tinc: {file: mynode_file}}
 
-an.post_node(node) # publish own data to the server
-candidate_nodes = an.get_random_nodes # fetch a random node
-#sleep 1
-#candidate_nodes = an.get_random_nodes # fetch a random node
-#sleep 1
-#candidate_nodes = an.get_random_nodes # fetch a random node
-#candidate_nodes
-#
-#response = JSON.parse(candidate_nodes[:body])
-#
-## this tinc instance is ours
-#t = Tinc.new('/usr/local/sbin/tinc',config['tinc']['dir'], 'me')
-#t.write_host(response['tinc']['file'])
-#t.connect(pubk)
+candidate_node = {}
+while candidate_node.nil? or candidate_node.empty? do
+  begin
+    an.post_node(node) # publish own data to the server
+  rescue => e
+    p e
+  end
+
+  begin
+    candidate_node = an.get_random_node # fetch a random node
+  rescue => e
+    p e
+  end
+  sleep 1
+end
+p candidate_node
+t.import(candidate_node['tinc']['file'])
+candnode_obj = Tinc.parse(candidate_node['tinc']['file'])
+p candnode_obj
+
+#t.connect(candnode_obj['Name'], candidate_node['ip'])
