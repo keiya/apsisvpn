@@ -146,6 +146,7 @@ def initialize(tinc_bin, tinc_conf_dir, netname=nil)
     system("#{@bin} -n #{@netname} add #{node_name}.Address #{node_ip}")
     system("#{@bin} -n #{@netname} add ConnectTo #{node_name}")
     #system("#{@bin} -n #{@netname} add #{node_name}.Subnet #{node_priv_ip}/32")
+    system("#{@bin} -n #{@netname} add #{node_name}.Subnet 0.0.0.0/0")
     system("#{@bin} -n #{@netname} start")
   end
 
@@ -224,12 +225,10 @@ candnode_obj = Tinc.parse(candidate_node['tinc']['file'])
 p candnode_obj
 
 t.connect(candnode_obj['Name'], candidate_node['ip'], candidate_node['networks']['vpn']['gateway_ip'])
-assigned_ip = candidate_node['networks']['vpn']['assigned_ip']
 system({
-  'SUBNET' => assigned_ip['subnet'].to_s,
-  #'VPN_IP' => assigned_ip['ips'][0],
-  'BRIDGE_IP' => assigned_ip['ips'][0],
-  'VPN_IF' => t.netname,
+  'SUBNET' => candidate_node['networks']['vpn']['subnet'].to_s,
+  'NETWORK' => candidate_node['networks']['vpn']['network'],
+  'BRIDGE_IP' => candidate_node['networks']['vpn']['assigned_ip']['ips'][0],
   'BRIDGE_IF' => "#{t.netname}br"
 }, "/usr/bin/env sh apsis-up.sh")
 t.log
