@@ -2,6 +2,8 @@
 
 - rendezvous-hub (server-side) https://github.com/keiya/rendezvous-hub
 
+# Prerequisites
+- `apt install bridge-utils` or `yum install bridge-utils`
 
 # config.yml sample
 

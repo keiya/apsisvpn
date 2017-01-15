@@ -5,6 +5,7 @@ require 'yaml'
 require 'optparse'
 require 'jwt'
 require 'digest/sha2'
+require 'fileutils'
 
 class ProofOfWork
   #@charset = (" ".."~").to_a
@@ -113,8 +114,7 @@ end
 
 class Tinc
   attr_reader :netname, :me
-
-  def initialize(tinc_bin, tinc_conf_dir, netname=nil)
+def initialize(tinc_bin, tinc_conf_dir, netname=nil)
     @bin = tinc_bin
     @netname = netname
 
@@ -124,7 +124,8 @@ class Tinc
       @netname = [netuuid.first, netuuid.last].join()[0,15]
     end
 
-    @hosts_dir = "#{tinc_conf_dir}/#{@netname}/hosts"
+    @net_dir = "#{tinc_conf_dir}/#{@netname}"
+    @hosts_dir = "#{@net_dir}/hosts"
   end
 
   def import(data)
@@ -142,14 +143,24 @@ class Tinc
 
   def connect(node_name, node_ip)
     system("#{@bin} -n #{@netname} start")
-    #system("#{@bin} -n #{@netname} add Address #{node_ip}")
+    system("#{@bin} -n #{@netname} add Mode switch")
+    system("#{@bin} -n #{@netname} add #{node_name}.Address #{node_ip}")
     system("#{@bin} -n #{@netname} add ConnectTo #{node_name}")
+  end
+
+  def disconnect
+    system("#{@bin} -n #{@netname} stop")
   end
 
   def init
     node_uuid = SecureRandom.uuid.split('-')
     node_name = [node_uuid.first, node_uuid.last].join()
     system("#{@bin} -n #{@netname} init #{node_name}")
+
+    FileUtils.cp('templates/tinc-up', "#{@net_dir}/tinc-up")
+    FileUtils.cp('templates/tinc-down', "#{@net_dir}/tinc-down")
+    FileUtils.chmod('ugo+x', "#{@net_dir}/tinc-up")
+    FileUtils.chmod('ugo+x', "#{@net_dir}/tinc-down")
     node_name
   end
 
@@ -157,7 +168,7 @@ class Tinc
     hash = {}
     str.each_line do |l|
       pair = l.split('=')
-      pair.map! {|e| e.delete(' ')}
+      pair.map! {|e| e.delete(' ').chomp}
       hash[pair[0]] = pair[1]
     end
     hash
@@ -172,8 +183,11 @@ config = YAML.load_file('config.yml')
 if params["net"].nil?
   t = Tinc.new('/usr/local/sbin/tinc',config['tinc']['dir'])
   mynode = t.init
+  File.open('created_net.txt','a') do |f|
+    f.puts t.netname
+  end
 else
-  t = Tinc.new('/usr/local/sbin/tinc',config['tinc']['dir'],config['tinc']['node'],params["net"])
+  t = Tinc.new('/usr/local/sbin/tinc',config['tinc']['dir'],params["net"])
 end
 mynode_file = t.export
 mynode_obj = Tinc.parse(mynode_file)
@@ -205,4 +219,4 @@ t.import(candidate_node['tinc']['file'])
 candnode_obj = Tinc.parse(candidate_node['tinc']['file'])
 p candnode_obj
 
-#t.connect(candnode_obj['Name'], candidate_node['ip'])
+t.connect(candnode_obj['Name'], candidate_node['ip'])
