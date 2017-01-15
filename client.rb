@@ -228,7 +228,13 @@ t.connect(candnode_obj['Name'], candidate_node['ip'], candidate_node['networks']
 system({
   'SUBNET' => candidate_node['networks']['vpn']['subnet'].to_s,
   'NETWORK' => candidate_node['networks']['vpn']['network'],
-  'BRIDGE_IP' => candidate_node['networks']['vpn']['assigned_ip']['ips'][0],
+  'BRIDGE_IP' => candidate_node['networks']['vpn']['assigned_ips'][0],
   'BRIDGE_IF' => "#{t.netname}br"
 }, "/usr/bin/env sh apsis-up.sh")
-t.log
+system({
+  'ipexif' => t.netname,
+  'ipexbr' => "#{t.netname}br",
+  'gateway' => candidate_node['networks']['vpn']['gateway_ip'],
+  'container_ipnet' => candidate_node['networks']['vpn']['assigned_ips'][1],
+  'subnet' => candidate_node['networks']['vpn']['subnet'].to_s
+}, config['dockerrunner']['command'])
