@@ -1,6 +1,7 @@
 # Related project
 
 - rendezvous-hub (server-side) https://github.com/keiya/rendezvous-hub
+- anoncontainer (network sandboxing) https://github.com/keiya/anoncontainer
 
 # Prerequisites
 - `apt install bridge-utils` or `yum install bridge-utils`

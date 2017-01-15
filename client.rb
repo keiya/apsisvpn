@@ -121,7 +121,7 @@ def initialize(tinc_bin, tinc_conf_dir, netname=nil)
     if @netname.nil?
       netuuid = SecureRandom.uuid.split('-')
       # except uuid4 version&variant for maximize a entropy
-      @netname = [netuuid.first, netuuid.last].join()[0,15]
+      @netname = [netuuid.first, netuuid.last].join()[0,13]
     end
 
     @net_dir = "#{tinc_conf_dir}/#{@netname}"
@@ -141,11 +141,16 @@ def initialize(tinc_bin, tinc_conf_dir, netname=nil)
     end
   end
 
-  def connect(node_name, node_ip)
-    system("#{@bin} -n #{@netname} start")
+  def connect(node_name, node_ip, node_priv_ip)
     system("#{@bin} -n #{@netname} add Mode switch")
     system("#{@bin} -n #{@netname} add #{node_name}.Address #{node_ip}")
     system("#{@bin} -n #{@netname} add ConnectTo #{node_name}")
+    #system("#{@bin} -n #{@netname} add #{node_name}.Subnet #{node_priv_ip}/32")
+    system("#{@bin} -n #{@netname} start")
+  end
+
+  def log
+    system("#{@bin} -n #{@netname} log 5")
   end
 
   def disconnect
@@ -214,9 +219,17 @@ while candidate_node.nil? or candidate_node.empty? do
   end
   sleep 1
 end
-p candidate_node
 t.import(candidate_node['tinc']['file'])
 candnode_obj = Tinc.parse(candidate_node['tinc']['file'])
 p candnode_obj
 
-t.connect(candnode_obj['Name'], candidate_node['ip'])
+t.connect(candnode_obj['Name'], candidate_node['ip'], candidate_node['networks']['vpn']['gateway_ip'])
+assigned_ip = candidate_node['networks']['vpn']['assigned_ip']
+system({
+  'SUBNET' => assigned_ip['subnet'].to_s,
+  #'VPN_IP' => assigned_ip['ips'][0],
+  'BRIDGE_IP' => assigned_ip['ips'][0],
+  'VPN_IF' => t.netname,
+  'BRIDGE_IF' => "#{t.netname}br"
+}, "/usr/bin/env sh apsis-up.sh")
+t.log

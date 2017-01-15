@@ -1,9 +1,10 @@
 #!/bin/bash
 
-bridge=${INTERFACE:0:-2}br
+bridge=${INTERFACE}br
 
-ip addr add 0.0.0.0 dev ${INTERFACE}
 ip link add name ${bridge} type bridge
 ip link set dev ${bridge} up
-ip link set dev ${INTERFACE} master ${bridge}
+ip addr add 0.0.0.0 dev ${INTERFACE}
+ip link set dev ${INTERFACE} promisc on
 ip link set dev ${INTERFACE} up
+ip link set dev ${INTERFACE} master ${bridge}
