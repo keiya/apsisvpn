@@ -141,11 +141,10 @@ def initialize(tinc_bin, tinc_conf_dir, netname=nil)
     end
   end
 
-  def connect(node_name, node_ip, node_priv_ip)
+  def connect(node_name, node_ip, vpn)
     system("#{@bin} -n #{@netname} add Mode switch")
     system("#{@bin} -n #{@netname} add #{node_name}.Address #{node_ip}")
     system("#{@bin} -n #{@netname} add ConnectTo #{node_name}")
-    #system("#{@bin} -n #{@netname} add #{node_name}.Subnet #{node_priv_ip}/32")
     system("#{@bin} -n #{@netname} add #{node_name}.Subnet 0.0.0.0/0")
     system("#{@bin} -n #{@netname} start")
   end
@@ -182,18 +181,24 @@ def initialize(tinc_bin, tinc_conf_dir, netname=nil)
 
 end
 
-params = ARGV.getopts('','net:')
+
+options = {}
+OptionParser.new do |opts|
+  opts.on("-n", "--net", "network") do |v|
+    options[:net] = v
+  end
+end.parse!
 
 config = YAML.load_file('config.yml')
 
-if params["net"].nil?
+if options["net"].nil?
   t = Tinc.new('/usr/local/sbin/tinc',config['tinc']['dir'])
   mynode = t.init
   File.open('created_net.txt','a') do |f|
     f.puts t.netname
   end
 else
-  t = Tinc.new('/usr/local/sbin/tinc',config['tinc']['dir'],params["net"])
+  t = Tinc.new('/usr/local/sbin/tinc',config['tinc']['dir'],options["net"])
 end
 mynode_file = t.export
 mynode_obj = Tinc.parse(mynode_file)
@@ -224,17 +229,35 @@ t.import(candidate_node['tinc']['file'])
 candnode_obj = Tinc.parse(candidate_node['tinc']['file'])
 p candnode_obj
 
-t.connect(candnode_obj['Name'], candidate_node['ip'], candidate_node['networks']['vpn']['gateway_ip'])
+t.connect(candnode_obj['Name'],
+          candidate_node['ip'],
+          candidate_node['networks']['vpn'])
 system({
   'SUBNET' => candidate_node['networks']['vpn']['subnet'].to_s,
   'NETWORK' => candidate_node['networks']['vpn']['network'],
   'BRIDGE_IP' => candidate_node['networks']['vpn']['assigned_ips'][0],
-  'BRIDGE_IF' => "#{t.netname}br"
+  'CONTAINER_IP' => candidate_node['networks']['vpn']['assigned_ips'][1],
+  'BRIDGE_IF' => "#{t.netname}br",
+  'VPN_IF' => t.netname,
+  'MASQ_IF' => config['tinc']['masqif']
 }, "/usr/bin/env sh apsis-up.sh")
-system({
+
+system(ENV.to_hash.merge({
   'ipexif' => t.netname,
   'ipexbr' => "#{t.netname}br",
   'gateway' => candidate_node['networks']['vpn']['gateway_ip'],
   'container_ipnet' => candidate_node['networks']['vpn']['assigned_ips'][1],
   'subnet' => candidate_node['networks']['vpn']['subnet'].to_s
-}, config['dockerrunner']['command'])
+}), config['dockerrunner']['command'] << ' ' << ARGV.join(' '))
+
+system({
+  'SUBNET' => candidate_node['networks']['vpn']['subnet'].to_s,
+  'NETWORK' => candidate_node['networks']['vpn']['network'],
+  'BRIDGE_IP' => candidate_node['networks']['vpn']['assigned_ips'][0],
+  'CONTAINER_IP' => candidate_node['networks']['vpn']['assigned_ips'][1],
+  'BRIDGE_IF' => "#{t.netname}br",
+  'VPN_IF' => t.netname,
+  'MASQ_IF' => config['tinc']['masqif']
+}, "/usr/bin/env sh apsis-down.sh")
+
+

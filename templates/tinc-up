@@ -2,9 +2,10 @@
 
 bridge=${INTERFACE}br
 
-ip link add name ${bridge} type bridge
-ip link set dev ${bridge} up
+#ip link add name ${bridge} type bridge && echo "1" > /tmp/tincuplog
+#ip link set dev ${bridge} up && echo "2" >> /tmp/tincuplog
 ip addr add 0.0.0.0 dev ${INTERFACE}
-ip link set dev ${INTERFACE} promisc on
-ip link set dev ${INTERFACE} up
-ip link set dev ${INTERFACE} master ${bridge}
+
+ip link set dev ${INTERFACE} promisc on && echo "4" >> /tmp/tincuplog
+ip link set dev ${INTERFACE} up && echo "5" >> /tmp/tincuplog
+#ip link set dev ${INTERFACE} master ${bridge} && echo "6" >> /tmp/tincuplog
