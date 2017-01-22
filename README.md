@@ -17,3 +17,12 @@ tinc:
 dockerrunner:
   command: python /path/to/anoncontainer/apsis.py
 ```
+
+# VPN Modules
+## Tinc VPN
+### Firewall Setup
+```
+iptables -A INPUT -m state --state NEW -p udp --dport 655 -j ACCEPT
+iptables -A INPUT -p tcp --dport 655 -m state --state NEW,ESTABLISHED -j ACCEPT
+iptables -A OUTPUT -p tcp --sport 655 -m state --state ESTABLISHED -j ACCEPT
+```
