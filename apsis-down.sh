@@ -19,7 +19,7 @@ $iptables -D FORWARD -m state --state NEW,ESTABLISHED,RELATED -s ${CONTAINER_IP}
 $iptables -D FORWARD -m state --state ESTABLISHED,RELATED -d ${CONTAINER_IP} -o ${BRIDGE_IF} -j ACCEPT
 
 # allow for pair ip from vpn -> br -> eth0 
-$iptables -D FORWARD -s 10.0.77.4 -i ${BRIDGE_IF} -o eth0 -j ACCEPT
-$iptables -D FORWARD -d 10.0.77.4 -o ${BRIDGE_IF} -i eth0 -j ACCEPT
-$iptables -D FORWARD -s 10.0.77.4 -i ${BRIDGE_IF} ! -o eth0 -j DROP
-$iptables -D FORWARD -d 10.0.77.4 -o ${BRIDGE_IF} ! -i eth0 -j DROP
+$iptables -D FORWARD -s ${PAIR_CONTAINER_IP} -i ${BRIDGE_IF} -o eth0 -j ACCEPT
+$iptables -D FORWARD -d ${PAIR_CONTAINER_IP} -o ${BRIDGE_IF} -i eth0 -j ACCEPT
+$iptables -D FORWARD -s ${PAIR_CONTAINER_IP} -i ${BRIDGE_IF} ! -o eth0 -j DROP
+$iptables -D FORWARD -d ${PAIR_CONTAINER_IP} -o ${BRIDGE_IF} ! -i eth0 -j DROP
