@@ -12,8 +12,11 @@
 ```
 hub:
   url: http://apsis-exchange-hub
+exchanger:
+  vpntype: tinc
 tinc:
-  dir: /usr/local/etc/tinc/ipex/hosts
+  dir: /usr/local/etc/tinc
+  exitif: eth0
 dockerrunner:
   command: python /path/to/anoncontainer/apsis.py
 ```

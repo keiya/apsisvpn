@@ -63,7 +63,7 @@ system({
   'PAIR_CONTAINER_IP' => candidate_node['networks']['vpn']['pair_container_ip'],
   'BRIDGE_IF' => "#{t.netname}br",
   'VPN_IF' => t.netname,
-  'MASQ_IF' => config['tinc']['masqif']
+  'EXIT_IF' => config['tinc']['exitif']
 }, "/usr/bin/env sh apsis-up.sh")
 
 system(ENV.to_hash.merge({
@@ -82,7 +82,7 @@ system({
   'PAIR_CONTAINER_IP' => candidate_node['networks']['vpn']['pair_container_ip'],
   'BRIDGE_IF' => "#{t.netname}br",
   'VPN_IF' => t.netname,
-  'MASQ_IF' => config['tinc']['masqif']
+  'EXIT_IF' => config['tinc']['exitif']
 }, "/usr/bin/env sh apsis-down.sh")
 
 
