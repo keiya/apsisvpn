@@ -29,9 +29,10 @@ def initialize(tinc_bin, tinc_conf_dir, netname=nil)
     end
   end
 
-  def connect(node_name, node_ip, vpn)
+  def connect(node_name, node_ip, node_port, vpn, bind_addr, bind_port)
     system("#{@bin} -n #{@netname} add Mode switch")
-    system("#{@bin} -n #{@netname} add #{node_name}.Address #{node_ip}")
+    system("#{@bin} -n #{@netname} add BindToAddress #{bind_addr} #{bind_port}")
+    system("#{@bin} -n #{@netname} add #{node_name}.Address #{node_ip} #{node_port}")
     system("#{@bin} -n #{@netname} add ConnectTo #{node_name}")
     system("#{@bin} -n #{@netname} add #{node_name}.Subnet 0.0.0.0/0")
     system("#{@bin} -n #{@netname} start")

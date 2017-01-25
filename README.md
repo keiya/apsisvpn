@@ -6,6 +6,7 @@
 # Prerequisites
 - `apt install bridge-utils` or `yum install bridge-utils`
 - `apt install iptables`
+- `gem install bundler`
 
 # config.yml sample
 
@@ -17,8 +18,19 @@ exchanger:
 tinc:
   dir: /usr/local/etc/tinc
   exitif: eth0
+  bindaddr: 0.0.0.0
+  bindport: 10000
 dockerrunner:
   command: python /path/to/anoncontainer/apsis.py
+```
+# Installation
+```
+bundle install
+```
+
+# Run
+```
+sudo bundle exec ruby client.rb 33dadd3c345c /bin/bash ; sudo bash rm-nets.sh
 ```
 
 # VPN Modules

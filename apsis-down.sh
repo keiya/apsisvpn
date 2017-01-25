@@ -1,6 +1,5 @@
-#!/bin/sh
+#!/bin/bash
 
-source '/tmp/tinc-script-vars'
 iptables=/sbin/iptables
 
 # bridge

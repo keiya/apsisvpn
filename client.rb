@@ -29,9 +29,9 @@ pubk = mynode_obj['Ed25519PublicKey']
 puts "tinc.#{t.netname} with pubkey: #{pubk}"
 
 ex = Exchanger.new(config['hub']['url'], pubk)
-p ex.get_challenge()
+ex.get_challenge()
 
-node = {version: 1, keys: {ed25519: pubk}, type: "tinc", tinc: {file: mynode_file}}
+node = {version: 1, keys: {ed25519: pubk}, type: "tinc", tinc: {port: config['tinc']['bindport'], file: mynode_file}}
 
 candidate_node = {}
 while candidate_node.nil? or candidate_node.empty? do
@@ -50,11 +50,15 @@ while candidate_node.nil? or candidate_node.empty? do
 end
 t.import(candidate_node['tinc']['file'])
 candnode_obj = Tinc.parse(candidate_node['tinc']['file'])
+p candidate_node
 p candnode_obj
 
 t.connect(candnode_obj['Name'],
           candidate_node['ip'],
-          candidate_node['networks']['vpn'])
+          candidate_node['tinc']['port'],
+          candidate_node['networks']['vpn'],
+          config['tinc']['bindaddr'],
+          config['tinc']['bindport'])
 system({
   'SUBNET' => candidate_node['networks']['vpn']['subnet'].to_s,
   'NETWORK' => candidate_node['networks']['vpn']['network'],

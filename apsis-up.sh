@@ -5,13 +5,9 @@ iptables=/sbin/iptables
 # bridge
 ip link add name ${BRIDGE_IF} type bridge
 ip link set dev ${BRIDGE_IF} up
-#ip addr add 0.0.0.0 dev ${VPN_IF}
-#ip link set dev ${VPN_IF} promisc on
-#ip link set dev ${VPN_IF} up
 ip link set dev ${VPN_IF} master ${BRIDGE_IF}
 
 # set ip for vpn tun
-#ip addr add ${ROUTER_IP}/${SUBNET} dev ${VPN_IF}
 ip link set dev ${VPN_IF} up
 
 # VPN Bridge
