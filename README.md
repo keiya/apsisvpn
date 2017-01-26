@@ -6,7 +6,7 @@
 # Prerequisites
 - `apt install bridge-utils` or `yum install bridge-utils`
 - `apt install iptables`
-- `gem install bundler`
+- bundler
 
 # config.yml sample
 

@@ -28,5 +28,15 @@ $iptables -A FORWARD -m state --state ESTABLISHED,RELATED -d ${CONTAINER_IP} -o 
 # allow for pair ip from vpn -> br -> eth0 
 $iptables -A FORWARD -s ${PAIR_CONTAINER_IP} -i ${BRIDGE_IF} -o ${EXIT_IF} -j ACCEPT
 $iptables -A FORWARD -d ${PAIR_CONTAINER_IP} -o ${BRIDGE_IF} -i ${EXIT_IF} -j ACCEPT
-$iptables -A FORWARD -s ${PAIR_CONTAINER_IP} -i ${BRIDGE_IF} ! -o ${EXIT_IF} -j DROP
-$iptables -A FORWARD -d ${PAIR_CONTAINER_IP} -o ${BRIDGE_IF} ! -i ${EXIT_IF} -j DROP
+$iptables -A FORWARD -s ${NETWORK}/${SUBNET} -i ${BRIDGE_IF} ! -o ${EXIT_IF} -j DROP
+$iptables -A FORWARD -d ${NETWORK}/${SUBNET} -o ${BRIDGE_IF} ! -i ${EXIT_IF} -j DROP
+
+# block br -> host
+$iptables -A INPUT -s ${NETWORK}/${SUBNET} -i ${BRIDGE_IF} -j DROP
+$iptables -A OUTPUT -d ${NETWORK}/${SUBNET} -o ${BRIDGE_IF} -j DROP
+
+# block private ip
+$iptables -A FORWARD -s ${NETWORK}/${SUBNET} -i ${BRIDGE_IF} -o ${EXIT_IF} -d 10.0.0.0/8 -j DROP
+$iptables -A FORWARD -s ${NETWORK}/${SUBNET} -i ${BRIDGE_IF} -o ${EXIT_IF} -d 176.16.0.0/12 -j DROP
+$iptables -A FORWARD -s ${NETWORK}/${SUBNET} -i ${BRIDGE_IF} -o ${EXIT_IF} -d 192.168.0.0/16 -j DROP
+$iptables -A FORWARD -s ${NETWORK}/${SUBNET} -i ${BRIDGE_IF} -o ${EXIT_IF} -d 127.0.0.0/8 -j DROP
